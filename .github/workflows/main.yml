@@ -1,0 +1,79 @@
+name: Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ---------------------------------------------------------
+  # 1. CONTINUOUS INTEGRATION (Build & Test)
+  # ---------------------------------------------------------
+  integration:
+    runs-on: ubuntu-latest
+
+    # This spins up a temporary PostgreSQL DB just for testing!
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: atlasid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Initialize Test Database
+      env:
+        PGPASSWORD: testpassword
+      run: |
+        # Inject your schema into the temporary testing database
+        psql -h localhost -U postgres -d atlasid_test -f schema.sql
+
+    - name: Run API Tests
+      env:
+        # Pass the temporary DB connection string to your tests
+        DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/atlasid_test
+      run: npm test
+
+  # ---------------------------------------------------------
+  # 2. CONTINUOUS DEPLOYMENT (Package Release)
+  # ---------------------------------------------------------
+  deployment:
+    needs: integration # ONLY run if tests pass
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Build Production Artifact
+      run: |
+        # Remove dev files, zip the codebase to simulate preparing a server deployment
+        zip -r atlasid-release.zip . -x "*.git*" "tests/*" "node_modules/*"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AtlasID-Production-Build
+        path: atlasid-release.zip

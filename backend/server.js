@@ -60,9 +60,12 @@ if (fs.existsSync(KEYS_FILE)) {
 // ─────────────────────────────────────────────────────────────────────────────
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-pool.connect()
-  .then(c => { c.release(); console.log('🗄️   PostgreSQL connected'); })
-  .catch(e => console.error('❌  DB connection failed:', e.message));
+// Only do the initial connection test if we are NOT running Jest
+if (process.env.NODE_ENV !== 'test') {
+  pool.connect()
+    .then(c => { c.release(); console.log('🗄️   PostgreSQL connected'); })
+    .catch(e => console.error('❌  DB connection failed:', e.message));
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CRYPTO HELPERS
@@ -354,32 +357,18 @@ app.get('/api/logs', async (req, res) => {
 //  LANDING PAGE
 // ══════════════════════════════════════════════════════════════
 
+// Serve the Wallet UI from the 'wallet' folder
 app.get('/', (req, res) => {
-  res.send(`
-    <style>body{font-family:monospace;padding:24px}h3{margin-top:20px}li{margin:4px 0}</style>
-    <h2>🚀 AtlasID Backend</h2>
-    <h3>Issuance Module (Mock MOSIP)</h3>
-    <ul>
-      <li>GET  <a href="/api/public-key">/api/public-key</a></li>
-      <li>POST /api/users/register</li>
-      <li>PATCH /api/users/:id/status</li>
-      <li>GET  <a href="/api/users">/api/users</a></li>
-      <li>POST /api/credentials/issue</li>
-      <li>GET  /api/credentials/:userId</li>
-    </ul>
-    <h3>Aid Entitlement Module</h3>
-    <ul>
-      <li>POST /api/entitlements/grant</li>
-      <li>GET  /api/entitlements/:identityId</li>
-      <li>PATCH /api/entitlements/:entitlementId/status</li>
-      <li>GET  <a href="/api/entitlements">/api/entitlements</a> (admin)</li>
-    </ul>
-    <h3>Audit</h3>
-    <ul><li>GET <a href="/api/logs">/api/logs</a></li></ul>
-  `);
+  res.sendFile(path.join(__dirname, '../wallet/index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`\n🚀  AtlasID Backend → http://localhost:${PORT}\n`)
-);
+// Only start the server if this file is run directly (not imported by tests)
+if (require.main === module) {
+  app.listen(PORT, () =>
+    console.log(`\n🚀  AtlasID Backend → http://localhost:${PORT}\n`)
+  );
+}
+
+app.pool = pool; // Expose the database pool
+module.exports = app; // Export for testing // Export for testing
