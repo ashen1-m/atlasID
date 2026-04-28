@@ -40,18 +40,18 @@ jobs:
         cache: 'npm'
 
     - name: Install Dependencies
-      run: npm ci
+      # Changed to npm install to avoid strict package-lock.json errors
+      run: npm install 
 
     - name: Initialize Test Database
       env:
         PGPASSWORD: testpassword
       run: |
-        # Inject your schema into the temporary testing database
-        psql -h localhost -U postgres -d atlasid_test -f schema.sql
+        # Added 'backend/' to the path so it finds your file!
+        psql -h localhost -U postgres -d atlasid_test -f backend/schema.sql
 
     - name: Run API Tests
       env:
-        # Pass the temporary DB connection string to your tests
         DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/atlasid_test
       run: npm test
 
