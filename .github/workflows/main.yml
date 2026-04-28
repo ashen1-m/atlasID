@@ -40,14 +40,15 @@ jobs:
         cache: 'npm'
 
     - name: Install Dependencies
-      # Changed to npm install to avoid strict package-lock.json errors
-      run: npm install 
+      run: |
+        npm install
+        cd backend
+        npm install
 
     - name: Initialize Test Database
       env:
         PGPASSWORD: testpassword
       run: |
-        # Added 'backend/' to the path so it finds your file!
         psql -h localhost -U postgres -d atlasid_test -f backend/schema.sql
 
     - name: Run API Tests
