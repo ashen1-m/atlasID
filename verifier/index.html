@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AtlasID — Wallet</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #13131a;
+      --card:    #1a1a26;
+      --border:  #2a2a3d;
+      --accent:  #7c6dfa;
+      --accent2: #2aeac0;
+      --text:    #e8e8f0;
+      --muted:   #6b6b88;
+      --danger:  #fa6d7c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+    }
+    .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    .logo span { color: var(--accent2); }
+    .user-chip {
+      margin-left: auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 6px 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .user-chip:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Tabs ── */
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 16px 32px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tab {
+      padding: 10px 22px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Main ── */
+    main { flex: 1; padding: 32px; max-width: 720px; width: 100%; margin: 0 auto; }
+
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    h2 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; font-family: 'Space Mono', monospace; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+    input, select, textarea {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input[readonly] { color: var(--muted); cursor: default; }
+    textarea { resize: vertical; min-height: 100px; }
+    select option { background: var(--card); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #6458e8; transform: translateY(-1px); }
+    .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+    /* ── Alert ── */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      font-family: 'Space Mono', monospace;
+      display: none;
+    }
+    .alert.success { background: rgba(42, 234, 192, 0.12); border: 1px solid rgba(42,234,192,0.4); color: var(--accent2); display: block; }
+    .alert.error   { background: rgba(250, 109, 124, 0.12); border: 1px solid rgba(250,109,124,0.4); color: var(--danger); display: block; }
+    .alert.info    { background: rgba(124, 109, 250, 0.12); border: 1px solid rgba(124,109,250,0.4); color: var(--accent); display: block; }
+
+    /* ── Credential card ── */
+    .cred-grid { display: flex; flex-direction: column; gap: 14px; }
+    .cred-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .cred-card:hover { border-color: var(--accent); }
+    .cred-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .cred-type {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      background: rgba(42,234,192,0.1);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .cred-issued { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+    .cred-payload {
+      margin-top: 14px;
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .cred-actions { margin-top: 14px; display: flex; gap: 8px; }
+    .sig-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--accent2);
+      font-family: 'Space Mono', monospace;
+    }
+    .sig-badge::before { content: '●'; font-size: 8px; }
+
+    /* ── Config bar ── */
+    .config-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+      align-items: center;
+    }
+    .config-bar input { margin-bottom: 0; }
+    .api-status { font-size: 11px; font-family: 'Space Mono', monospace; padding: 4px 10px; border-radius: 4px; }
+    .api-status.ok  { background: rgba(42,234,192,0.1); color: var(--accent2); }
+    .api-status.err { background: rgba(250,109,124,0.1); color: var(--danger); }
+
+    /* ── QR Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,15,0.88);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+    }
+    .modal h3 { font-size: 20px; margin-bottom: 6px; }
+    .modal .sub { color: var(--muted); font-size: 12px; margin-bottom: 24px; font-family: 'Space Mono', monospace; }
+    #qr-container { display: flex; justify-content: center; margin-bottom: 24px; }
+    #qr-container canvas, #qr-container img { border-radius: 8px; }
+    .modal-note { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty p { font-size: 14px; }
+
+    /* ── DID display ── */
+    .did-display {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .did-display .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .did-display .value { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent2); word-break: break-all; }
+    .did-display .uid { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Atlas<span>ID</span> <span style="color:var(--muted);font-size:14px;font-weight:400;">Wallet</span></div>
+  <div class="user-chip" id="header-user" onclick="showTab('register')">No identity — Register →</div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="showTab('register')">① Register</button>
+  <button class="tab" onclick="showTab('issue')">② Issue Credential</button>
+  <button class="tab" onclick="showTab('wallet')">③ My Wallet</button>
+  <button class="tab" onclick="showTab('entitlements')">④ Aid Entitlements</button>
+</nav>
+
+<main>
+
+  <!-- ════════════════════════════════════════ REGISTER ═══ -->
+  <div class="panel active" id="panel-register">
+    <h2>Register Identity</h2>
+    <p class="subtitle">Creates your Decentralized ID (DID) and registers it with the issuer</p>
+
+    <div class="config-bar">
+      <input id="api-url" value="http://localhost:3000" style="max-width:260px" />
+      <button class="btn btn-secondary btn-sm" onclick="checkApi()">Test Connection</button>
+      <span class="api-status" id="api-status"></span>
+    </div>
+
+    <div id="reg-alert" class="alert"></div>
+
+    <div id="identity-display" style="display:none">
+      <div class="did-display">
+        <div class="label">Your Decentralized ID (DID)</div>
+        <div class="value" id="did-show"></div>
+        <div class="uid" id="uid-show"></div>
+      </div>
+      <button class="btn btn-secondary" onclick="clearIdentity()">🗑 Clear &amp; Re-register</button>
+    </div>
+
+    <div id="register-form">
+      <div class="form-group">
+        <label>Your Name</label>
+        <input id="reg-name" type="text" placeholder="e.g. Walid Gouza" />
+      </div>
+      <div class="form-group">
+        <label>Generated DID (auto)</label>
+        <input id="reg-did" type="text" readonly />
+        <small style="color:var(--muted);font-size:11px;margin-top:6px;display:block">
+          Auto-generated. DID = did:atlas:{random-uuid}
+        </small>
+      </div>
+      <button class="btn btn-primary" onclick="register()">Register Identity →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ ISSUE ════════ -->
+  <div class="panel" id="panel-issue">
+    <h2>Issue Credential</h2>
+    <p class="subtitle">Ask the backend to issue & cryptographically sign a credential for you</p>
+
+    <div id="issue-alert" class="alert"></div>
+
+    <div class="form-group">
+      <label>Credential Type</label>
+      <select id="cred-type" onchange="updatePayloadTemplate()">
+        <option value="National_ID">National ID</option>
+        <option value="Food_Aid_Voucher">Food Aid Voucher</option>
+        <option value="Refugee_Status">Refugee Status</option>
+        <option value="Medical_Record">Medical Record</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Payload (JSON)</label>
+      <textarea id="cred-payload" rows="6"></textarea>
+    </div>
+
+    <button class="btn btn-primary" onclick="issueCredential()">Sign &amp; Issue →</button>
+  </div>
+
+  <!-- ════════════════════════════════════════ WALLET ═══════ -->
+  <div class="panel" id="panel-wallet">
+    <h2>My Wallet</h2>
+    <p class="subtitle">Your offline-accessible credentials — tap to generate QR for verification</p>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <button class="btn btn-secondary btn-sm" onclick="syncFromServer()">↻ Sync from server</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadWallet()">Refresh local</button>
+    </div>
+
+    <div id="wallet-container"></div>
+  </div>
+
+  <!-- ══════════════════════════ ENTITLEMENTS ══════════ -->
+  <div class="panel" id="panel-entitlements">
+    <h2>Aid Entitlements</h2>
+    <p class="subtitle">Aid packages granted to your identity — Aid_Entitlement registry</p>
+
+    <div id="ent-alert" class="alert"></div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="showGrantForm()">+ Grant Entitlement</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadEntitlements()">↻ Refresh</button>
+    </div>
+
+    <div id="grant-form" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--accent2)">Grant New Entitlement</div>
+      <div class="form-group">
+        <label>Aid Type</label>
+        <select id="ent-type">
+          <option value="FoodRation">Food Ration</option>
+          <option value="CashTransfer">Cash Transfer</option>
+          <option value="MedicalCoverage">Medical Coverage</option>
+          <option value="ShelterAllowance">Shelter Allowance</option>
+          <option value="EducationGrant">Education Grant</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="flex:1">
+          <label>Value</label>
+          <input id="ent-value" type="number" placeholder="150" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Currency</label>
+          <select id="ent-currency">
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="MAD">MAD</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="flex:1">
+          <label>Period Start</label>
+          <input id="ent-start" type="date" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Period End</label>
+          <input id="ent-end" type="date" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <input id="ent-notes" type="text" placeholder="e.g. Monthly WFP allocation" />
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="grantEntitlement()">Grant →</button>
+        <button class="btn btn-secondary" onclick="hideGrantForm()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="entitlements-container"></div>
+  </div>
+
+</main>
+
+<!-- ── QR Modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <h3>Show QR to Verifier</h3>
+    <p class="sub" id="qr-subtitle"></p>
+    <div id="qr-container"></div>
+    <p class="modal-note">Works offline — verifier only needs cached public key</p>
+    <br>
+    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────────────────
+function apiUrl() { return (document.getElementById('api-url').value || 'http://localhost:3000').replace(/\/$/, ''); }
+
+function getIdentity() {
+  const s = localStorage.getItem('atlasid_identity');
+  return s ? JSON.parse(s) : null;
+}
+
+function saveIdentity(obj) {
+  localStorage.setItem('atlasid_identity', JSON.stringify(obj));
+}
+
+function clearIdentity() {
+  localStorage.removeItem('atlasid_identity');
+  localStorage.removeItem('atlasid_credentials');
+  localStorage.removeItem('atlasid_entitlements');
+  location.reload();
+}
+
+function getCredentials() {
+  const s = localStorage.getItem('atlasid_credentials');
+  return s ? JSON.parse(s) : [];
+}
+
+function saveCredentials(creds) {
+  localStorage.setItem('atlasid_credentials', JSON.stringify(creds));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Auto-generate DID
+  document.getElementById('reg-did').value = 'did:atlas:' + generateUUID();
+
+  const identity = getIdentity();
+  if (identity) {
+    showExistingIdentity(identity);
+  }
+  updatePayloadTemplate();
+});
+
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.tab');
+  const map = { register: 0, issue: 1, wallet: 2, entitlements: 3 };
+  tabs[map[name]]?.classList.add('active');
+  if (name === 'wallet') loadWallet();
+  if (name === 'entitlements') loadEntitlements();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ENTITLEMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+function showGrantForm()  { document.getElementById('grant-form').style.display = 'block'; }
+function hideGrantForm()  { document.getElementById('grant-form').style.display = 'none'; }
+
+async function grantEntitlement() {
+  const identity = getIdentity();
+  if (!identity) return showAlert('ent-alert', 'error', 'Register an identity first (Tab ①)');
+
+  const aidType     = document.getElementById('ent-type').value;
+  const value       = parseFloat(document.getElementById('ent-value').value);
+  const currency    = document.getElementById('ent-currency').value;
+  const periodStart = document.getElementById('ent-start').value || undefined;
+  const periodEnd   = document.getElementById('ent-end').value   || undefined;
+  const notes       = document.getElementById('ent-notes').value || undefined;
+
+  if (!value || isNaN(value)) return showAlert('ent-alert', 'error', 'Enter a numeric value');
+
+  try {
+    const r = await fetch(apiUrl() + '/api/entitlements/grant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identityId: identity.userId, aidType, value, currency, periodStart, periodEnd, notes })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Grant failed');
+
+    hideGrantForm();
+    showAlert('ent-alert', 'success', `✓ ${aidType} entitlement granted — ${value} ${currency}`);
+    loadEntitlements();
+  } catch (err) {
+    showAlert('ent-alert', 'error', '✗ ' + err.message);
+  }
+}
+
+async function loadEntitlements() {
+  const identity = getIdentity();
+  const container = document.getElementById('entitlements-container');
+  if (!identity) {
+    container.innerHTML = `<div class="empty"><div class="icon">🪙</div><p>Register an identity first.</p></div>`;
+    return;
+  }
+  try {
+    const r    = await fetch(apiUrl() + '/api/entitlements/' + identity.userId);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    renderEntitlements(data.entitlements);
+  } catch (err) {
+    container.innerHTML = `<div class="empty"><div class="icon">⚠️</div><p>Could not load: ${err.message}</p></div>`;
+  }
+}
+
+const STATUS_COLORS = {
+  Active:    'var(--accent2)',
+  Suspended: 'var(--danger)',
+  Exhausted: 'var(--muted)',
+  Expired:   'var(--muted)'
+};
+
+const AID_ICONS = {
+  FoodRation:       '🌾',
+  CashTransfer:     '💵',
+  MedicalCoverage:  '🏥',
+  ShelterAllowance: '🏠',
+  EducationGrant:   '📚'
+};
+
+function renderEntitlements(list) {
+  const container = document.getElementById('entitlements-container');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty"><div class="icon">🪙</div><p>No entitlements yet.<br>Click "+ Grant Entitlement" above.</p></div>`;
+    return;
+  }
+  container.innerHTML = '<div class="cred-grid">' + list.map(e => `
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-type" style="background:rgba(124,109,250,0.12);color:var(--accent)">
+          ${AID_ICONS[e.aidType] || '🎫'} ${e.aidType.replace(/([A-Z])/g, ' $1').trim()}
+        </span>
+        <span style="font-size:11px;color:${STATUS_COLORS[e.status] || 'var(--muted)'}">● ${e.status}</span>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:24px;align-items:baseline">
+        <div>
+          <div style="font-size:28px;font-weight:800;color:var(--accent2)">${parseFloat(e.value).toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace">${e.currency}</div>
+        </div>
+        ${e.periodStart ? `<div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace">
+          ${e.periodStart.slice(0,10)} → ${e.periodEnd ? e.periodEnd.slice(0,10) : 'open'}
+        </div>` : ''}
+      </div>
+      ${e.notes ? `<div style="margin-top:10px;font-size:12px;color:var(--muted);font-style:italic">${e.notes}</div>` : ''}
+      <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">
+        ID: ${e.entitlementId.slice(0,8)}… · Issued ${new Date(e.issuedAt).toLocaleDateString()}
+      </div>
+      <div class="cred-actions" style="gap:6px">
+        ${e.status === 'Active'    ? `<button class="btn btn-secondary btn-sm" onclick="updateEntStatus('${e.entitlementId}','Suspended')">Suspend</button>` : ''}
+        ${e.status === 'Suspended' ? `<button class="btn btn-secondary btn-sm" onclick="updateEntStatus('${e.entitlementId}','Active')">Reactivate</button>` : ''}
+        ${e.status === 'Active'    ? `<button class="btn btn-secondary btn-sm" onclick="updateEntStatus('${e.entitlementId}','Exhausted')">Mark Exhausted</button>` : ''}
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+
+async function updateEntStatus(entitlementId, status) {
+  try {
+    const r = await fetch(apiUrl() + '/api/entitlements/' + entitlementId + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    showAlert('ent-alert', 'success', `✓ Status updated to ${status}`);
+    loadEntitlements();
+  } catch (err) {
+    showAlert('ent-alert', 'error', '✗ ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  API
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkApi() {
+  const el = document.getElementById('api-status');
+  el.className = 'api-status';
+  el.textContent = '…';
+  try {
+    const r = await fetch(apiUrl());
+    el.className = 'api-status ok';
+    el.textContent = '✓ Connected';
+  } catch {
+    el.className = 'api-status err';
+    el.textContent = '✗ Unreachable';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  REGISTER
+// ─────────────────────────────────────────────────────────────────────────────
+function showExistingIdentity(identity) {
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('identity-display').style.display = 'block';
+  document.getElementById('did-show').textContent = identity.did;
+  document.getElementById('uid-show').textContent = 'Server ID: ' + identity.userId;
+  document.getElementById('header-user').textContent = '👤 ' + identity.name;
+}
+
+async function register() {
+  const name = document.getElementById('reg-name').value.trim();
+  const did  = document.getElementById('reg-did').value.trim();
+  const alert = document.getElementById('reg-alert');
+  alert.className = 'alert';
+
+  if (!name) return showAlert('reg-alert', 'error', 'Please enter your name.');
+
+  try {
+    const r = await fetch(apiUrl() + '/api/users/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, did })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Registration failed');
+
+    const identity = { name, did, userId: data.userId };
+    saveIdentity(identity);
+    showExistingIdentity(identity);
+    showAlert('reg-alert', 'success', `✓ Registered as "${name}" — DID issued`);
+
+  } catch (err) {
+    showAlert('reg-alert', 'error', '✗ ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PAYLOAD TEMPLATES
+// ─────────────────────────────────────────────────────────────────────────────
+const templates = {
+  National_ID: { fullName: 'Walid Gouza', nationality: 'Moroccan', dob: '1998-04-10', idNumber: 'MOR-123456' },
+  Food_Aid_Voucher: { program: 'WFP Atlas', monthlyValue: 150, currency: 'USD', validUntil: '2025-12-31' },
+  Refugee_Status: { campName: 'Atlas Camp 4', registrationDate: '2024-01-15', origin: 'Tindouf', status: 'Active' },
+  Medical_Record: { bloodType: 'O+', allergies: 'None', vaccinationStatus: 'Up to date', lastCheckup: '2025-01-01' }
+};
+
+function updatePayloadTemplate() {
+  const type = document.getElementById('cred-type').value;
+  document.getElementById('cred-payload').value = JSON.stringify(templates[type] || {}, null, 2);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ISSUE CREDENTIAL
+// ─────────────────────────────────────────────────────────────────────────────
+async function issueCredential() {
+  const identity = getIdentity();
+  if (!identity) return showAlert('issue-alert', 'error', 'Register an identity first (Tab ①)');
+
+  let payload;
+  try {
+    payload = JSON.parse(document.getElementById('cred-payload').value);
+  } catch {
+    return showAlert('issue-alert', 'error', 'Invalid JSON in payload');
+  }
+
+  const type = document.getElementById('cred-type').value;
+
+  try {
+    const r = await fetch(apiUrl() + '/api/credentials/issue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: identity.userId, type, payload })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Issuance failed');
+
+    // Save locally (offline access!)
+    const creds = getCredentials();
+    creds.unshift(data.credential);
+    saveCredentials(creds);
+
+    showAlert('issue-alert', 'success', `✓ "${type}" credential issued & signed with Ed25519`);
+
+  } catch (err) {
+    showAlert('issue-alert', 'error', '✗ ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  WALLET
+// ─────────────────────────────────────────────────────────────────────────────
+function loadWallet() {
+  const creds = getCredentials();
+  const container = document.getElementById('wallet-container');
+
+  if (creds.length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="icon">🎫</div>
+        <p>No credentials yet.<br>Go to Tab ② to issue one.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = '<div class="cred-grid">' +
+    creds.map((c, i) => `
+      <div class="cred-card">
+        <div class="cred-header">
+          <span class="cred-type">${c.type.replace(/_/g,' ')}</span>
+          <span class="cred-issued">${new Date(c.issuedAt).toLocaleDateString()}</span>
+        </div>
+        <div class="cred-payload">${JSON.stringify(c.payload, null, 2)}</div>
+        <div class="cred-actions">
+          <button class="btn btn-primary btn-sm" onclick="showQR(${i})">📲 Show QR</button>
+          <span class="sig-badge">Ed25519 signed</span>
+        </div>
+      </div>
+    `).join('') + '</div>';
+}
+
+async function syncFromServer() {
+  const identity = getIdentity();
+  if (!identity) return alert('Register first!');
+  try {
+    const r = await fetch(apiUrl() + '/api/credentials/' + identity.userId);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    saveCredentials(data.credentials);
+    loadWallet();
+  } catch (err) {
+    alert('Sync failed: ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  QR GENERATION
+// ─────────────────────────────────────────────────────────────────────────────
+function showQR(index) {
+  const cred = getCredentials()[index];
+  if (!cred) return;
+
+  // QR payload = everything the verifier needs to validate OFFLINE
+  const qrData = {
+    id:       cred.id,
+    userId:   cred.userId,
+    type:     cred.type,
+    payload:  cred.payload,
+    issuedAt: cred.issuedAt,
+    signature: cred.signature
+  };
+
+  document.getElementById('qr-subtitle').textContent =
+    cred.type.replace(/_/g, ' ') + ' — ' + new Date(cred.issuedAt).toLocaleDateString();
+
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+
+  new QRCode(container, {
+    text:          JSON.stringify(qrData),
+    width:         260,
+    height:        260,
+    colorDark:     '#e8e8f0',
+    colorLight:    '#13131a',
+    correctLevel:  QRCode.CorrectLevel.M
+  });
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('open');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  UTIL
+// ─────────────────────────────────────────────────────────────────────────────
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = 'alert ' + type;
+  el.textContent = msg;
+  setTimeout(() => el.className = 'alert', 5000);
+}
+</script>
+</body>
+</html>
