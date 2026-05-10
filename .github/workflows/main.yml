@@ -65,7 +65,7 @@ jobs:
           # 🔥 CACHE REQUIREMENT REMOVED HERE to stop the crash
 
       - name: Install Frontend Dependencies
-        working-directory: ./wallet
+        working-directory: ./clean-wallet
         run: npm ci
 
       - name: Verify Expo Build Compatibility
