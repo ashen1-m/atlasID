@@ -1,25 +1,22 @@
-name: Enterprise CI/CD Pipeline
+name: AtlasID CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main, v2-architecture ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  # ---------------------------------------------------------
-  # 1. CONTINUOUS INTEGRATION (Build & Test)
-  # ---------------------------------------------------------
-  integration:
+  backend-tests:
     runs-on: ubuntu-latest
-
-    # This spins up a temporary PostgreSQL DB just for testing!
+    
+    # Spin up a live Postgres database for Jest tests to use
     services:
       postgres:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: testpassword
+          POSTGRES_PASSWORD: postgres_password
           POSTGRES_DB: atlasid_test
         ports:
           - 5432:5432
@@ -30,51 +27,48 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-    - name: Install Dependencies
-      run: |
-        npm install
-        cd backend
-        npm install
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
 
-    - name: Initialize Test Database
-      env:
-        PGPASSWORD: testpassword
-      run: |
-        psql -h localhost -U postgres -d atlasid_test -f backend/schema.sql
+      - name: Run Backend Jest Tests
+        working-directory: ./backend
+        env:
+          PORT: 3000
+          DB_USER: postgres
+          DB_PASSWORD: postgres_password
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: atlasid_test
+        run: npm test
 
-    - name: Run API Tests
-      env:
-        DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/atlasid_test
-      run: npm test
-
-  # ---------------------------------------------------------
-  # 2. CONTINUOUS DEPLOYMENT (Package Release)
-  # ---------------------------------------------------------
-  deployment:
-    needs: integration # ONLY run if tests pass
+  frontend-build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Build Production Artifact
-      run: |
-        # Remove dev files, zip the codebase to simulate preparing a server deployment
-        zip -r atlasid-release.zip . -x "*.git*" "tests/*" "node_modules/*"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: wallet/package-lock.json
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: AtlasID-Production-Build
-        path: atlasid-release.zip
+      - name: Install Frontend Dependencies
+        working-directory: ./wallet
+        run: npm ci
+
+      - name: Verify Expo Build Compatibility
+        working-directory: ./wallet
+        run: npx expo export --platform web # Verifies the JS bundle compiles correctly

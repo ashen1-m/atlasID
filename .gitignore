@@ -1,4 +1,36 @@
+```text
+# Node
 node_modules/
+npm-debug.log
+yarn-error.log
+
+# React Native / Expo
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Environment variables
 .env
-.DS_Store
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Security / Cryptography (CRITICAL)
 issuer_keys.json
+
+# IDEs and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Coverage reports
+coverage/

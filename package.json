@@ -1,11 +1,7 @@
 {
-  "devDependencies": {
-    "jest": "^30.3.0",
-    "supertest": "^7.2.2"
-  },
-
-"scripts": {
-  "start": "node server.js",
-  "test": "jest --detectOpenHandles"
-}
+  "name": "atlasid-workspace",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ]
 }
