@@ -1,15 +1,23 @@
 const request = require('supertest');
-const { app, pool } = require('../server');
+const { app, pool, initDB } = require('../server');
 
-// A persistent UID to use across the test suite
 const TEST_UID = 'mosip-uid-test-999';
+let server; 
 
 describe('AtlasID Backend API Tests', () => {
 
-  // Cleanup database connections after all tests finish so Jest exits cleanly
+
+  beforeAll(async () => {
+    await initDB();
+    server = app.listen(3000); 
+  });
+
+
   afterAll(async () => {
     await pool.end();
+    server.close();
   });
+
 
   describe('GET /api/public-key', () => {
     it('should return the cryptographic public key and issuer DID', async () => {

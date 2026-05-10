@@ -217,4 +217,5 @@ if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => console.log(`Backend online on port ${PORT}`));
 }
 
-module.exports = { app, pool };
+// Change this line at the bottom:
+module.exports = { app, pool, initDB };

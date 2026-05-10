@@ -62,8 +62,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: wallet/package-lock.json
+          # 🔥 CACHE REQUIREMENT REMOVED HERE to stop the crash
 
       - name: Install Frontend Dependencies
         working-directory: ./wallet
@@ -71,4 +70,4 @@ jobs:
 
       - name: Verify Expo Build Compatibility
         working-directory: ./wallet
-        run: npx expo export --platform web # Verifies the JS bundle compiles correctly
+        run: npx expo export --platform web
