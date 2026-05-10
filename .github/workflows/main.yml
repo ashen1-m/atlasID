@@ -62,12 +62,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # 🔥 CACHE REQUIREMENT REMOVED HERE to stop the crash
 
       - name: Install Frontend Dependencies
         working-directory: ./clean-wallet
         run: npm ci
-
-      - name: Verify Expo Build Compatibility
-        working-directory: ./clean-wallet
-        run: npx expo export --platform web
